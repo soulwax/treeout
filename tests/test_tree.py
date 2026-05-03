@@ -8,8 +8,9 @@ from treeout.tree import (
     DEFAULT_IGNORE_PATTERNS,
     compile_ignore_pattern,
     generate_tree,
+    process_tree_node,
 )
-from treeout.types import TreeStats
+from treeout.types import NodeConfig, TreeStats
 
 
 @pytest.fixture
@@ -97,3 +98,69 @@ def test_max_depth(test_directory: Path) -> None:
     assert not any("level3" in line for line in tree_output)
     assert not any("deep_file.txt" in line for line in tree_output)
     assert not any("level1" in line for line in tree_output if "shallow_file.txt" in line)
+
+
+# pylint: disable=redefined-outer-name
+def test_extension_filter(test_directory: Path) -> None:
+    """Test filtering displayed files by extension."""
+    stats = TreeStats()
+    tree_output = generate_tree(
+        directory=test_directory,
+        stats=stats,
+        include_extensions={".py"},
+    )
+
+    assert stats.files == 1
+    assert any("file2.py" in line for line in tree_output)
+    assert not any("file1.txt" in line for line in tree_output)
+
+
+# pylint: disable=redefined-outer-name
+def test_glob_filter(test_directory: Path) -> None:
+    """Test filtering displayed files by glob pattern."""
+    stats = TreeStats()
+    tree_output = generate_tree(
+        directory=test_directory,
+        stats=stats,
+        include_globs={"file2.*"},
+    )
+
+    assert stats.files == 1
+    assert any("file2.py" in line for line in tree_output)
+    assert not any("file1.txt" in line for line in tree_output)
+
+
+def test_permissions_display(tmp_path: Path) -> None:
+    """Test Unix-style permission display."""
+    test_file = tmp_path / "file.txt"
+    test_file.write_text("content")
+
+    result = process_tree_node(test_file, "", NodeConfig(show_permissions=True))
+
+    assert "file.txt" in result
+    assert "[-" in result
+
+
+def test_git_status_display(tmp_path: Path) -> None:
+    """Test Git status marker display."""
+    test_file = tmp_path / "file.txt"
+    test_file.write_text("content")
+
+    result = process_tree_node(test_file, "", NodeConfig(), git_status="M")
+
+    assert "file.txt" in result
+    assert "[git:M]" in result
+
+
+def test_custom_file_color_display(tmp_path: Path) -> None:
+    """Test custom extension color mapping."""
+    test_file = tmp_path / "README.md"
+    test_file.write_text("content")
+
+    result = process_tree_node(
+        test_file,
+        "",
+        NodeConfig(use_color=True, file_colors={".md": "red"}),
+    )
+
+    assert "\033[91mREADME.md\033[0m" in result

@@ -1,12 +1,13 @@
 """Core tree generation functionality."""
 
 import re
+import stat
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Pattern, Set, Tuple
+from typing import Dict, List, Optional, Pattern, Set, Tuple
 
 from .types import NodeConfig, TreeStats
-from .utils import process_directory_items
+from .utils import process_directory_path
 
 DEFAULT_IGNORE_PATTERNS = {
     r"^\.git$",
@@ -23,6 +24,7 @@ DEFAULT_IGNORE_PATTERNS = {
     r"^\.env$",
     r"^\.tox$",
     r"^\.coverage$",
+    r"^\.treeignore$",
     r"^\.sass-cache$",
     r"^\.next$",
     r"^dist$",
@@ -88,9 +90,10 @@ def parse_pattern_file(file_path: str) -> Set[str]:
     patterns = set()
     try:
         with open(file_path, "r", encoding="utf-8") as pattern_file:
-            patterns.update(
-                line.strip() for line in pattern_file if line.strip() and not line.startswith("#")
-            )
+            for line in pattern_file:
+                stripped_line = line.strip()
+                if stripped_line and not stripped_line.startswith("#"):
+                    patterns.add(stripped_line)
     except OSError as operating_system_error:
         print(
             "Warning: Could not read pattern file {}: {}".format(file_path, operating_system_error)
@@ -98,7 +101,9 @@ def parse_pattern_file(file_path: str) -> Set[str]:
     return patterns
 
 
-def get_color_for_file(path: Path, use_color: bool) -> Tuple[str, str]:
+def get_color_for_file(
+    path: Path, use_color: bool, file_colors: Optional[Dict[str, str]] = None
+) -> Tuple[str, str]:
     """Get the color code for a file and its reset code."""
     if not use_color:
         return "", ""
@@ -108,34 +113,62 @@ def get_color_for_file(path: Path, use_color: bool) -> Tuple[str, str]:
     if path.is_symlink():
         return COLORS["yellow"], COLORS["reset"]
 
-    color = FILE_COLORS.get(path.suffix.lower(), "")
+    color_map = FILE_COLORS if file_colors is None else file_colors
+    color = color_map.get(path.suffix.lower(), "")
     return COLORS.get(color, ""), COLORS["reset"]
 
 
-def get_file_info(path: Path, show_size: bool, show_date: bool) -> str:
+def get_file_info(
+    path: Path,
+    show_size: bool,
+    show_date: bool,
+    show_permissions: bool,
+    git_status: Optional[str] = None,
+) -> str:
     """Get additional file information based on flags."""
     info_parts = []
+    if git_status:
+        info_parts.append(f"[git:{git_status}]")
     if show_size and path.is_file():
         info_parts.append(f"[{get_size_str(path.stat().st_size)}]")
     if show_date:
         mtime = datetime.fromtimestamp(path.stat().st_mtime)
         info_parts.append(mtime.strftime("[%Y-%m-%d %H:%M]"))
+    if show_permissions:
+        info_parts.append(f"[{stat.filemode(path.stat().st_mode)}]")
     return " ".join(info_parts)
 
 
+def get_node_display_name(item: Path, config: NodeConfig) -> str:
+    """Get a display name for a tree node."""
+    color_start, color_end = get_color_for_file(item, config.use_color, config.file_colors)
+    display_name = f"{item.name}/" if item.is_dir() else item.name
+    return f"{color_start}{display_name}{color_end}"
+
+
+def get_node_label(item: Path, config: NodeConfig, git_status: Optional[str] = None) -> str:
+    """Get the complete display label for a tree node."""
+    info = get_file_info(
+        item,
+        show_size=config.show_size,
+        show_date=config.show_date,
+        show_permissions=config.show_permissions,
+        git_status=git_status,
+    )
+    info = f" {info}" if info else ""
+    return f"{get_node_display_name(item, config)}{info}"
+
+
 def process_tree_node(
-    item: Path, prefix: str, config: NodeConfig, is_last_item: bool = False
+    item: Path,
+    prefix: str,
+    config: NodeConfig,
+    is_last_item: bool = False,
+    git_status: Optional[str] = None,
 ) -> str:
     """Process a single tree node (file or directory)."""
     connector = "└───" if is_last_item else "├───"
-    color_start, color_end = get_color_for_file(item, config.use_color)
-    info = get_file_info(item, config.show_size, config.show_date)
-
-    # Add trailing slash to directories
-    display_name = f"{item.name}/" if item.is_dir() else item.name
-
-    info = f" {info}" if info else ""
-    return f"{prefix}{connector}{color_start}{display_name}{color_end}{info}"
+    return f"{prefix}{connector}{get_node_label(item, config, git_status)}"
 
 
 def generate_tree(
@@ -146,8 +179,13 @@ def generate_tree(
     current_depth: int = 0,
     stats: Optional[TreeStats] = None,
     exclude_pattern: Optional[Pattern] = None,
+    include_extensions: Optional[Set[str]] = None,
+    include_globs: Optional[Set[str]] = None,
+    git_statuses: Optional[Dict[Path, str]] = None,
+    file_colors: Optional[Dict[str, str]] = None,
     show_size: bool = False,
     show_date: bool = False,
+    show_permissions: bool = False,
     use_color: bool = False,
 ) -> List[str]:
     """Generate a Windows-style ASCII tree structure for the given directory."""
@@ -155,16 +193,31 @@ def generate_tree(
         stats = TreeStats()
 
     lines = []
-    items = list(directory.iterdir())
-    files, dirs = process_directory_items(items, stats, exclude_pattern)
+    files, dirs = process_directory_path(
+        directory,
+        stats,
+        exclude_pattern,
+        include_extensions,
+        include_globs,
+    )
 
     # Process files
     for index, item in enumerate(files):
         is_last_item = (index == len(files) - 1) and not dirs
-        node_config = NodeConfig(show_size=show_size, show_date=show_date, use_color=use_color)
+        node_config = NodeConfig(
+            show_size=show_size,
+            show_date=show_date,
+            show_permissions=show_permissions,
+            use_color=use_color,
+            file_colors=file_colors,
+        )
         lines.append(
             process_tree_node(
-                item=item, prefix=prefix, config=node_config, is_last_item=is_last_item
+                item=item,
+                prefix=prefix,
+                config=node_config,
+                is_last_item=is_last_item,
+                git_status=git_statuses.get(item.resolve()) if git_statuses else None,
             )
         )
 
@@ -174,10 +227,20 @@ def generate_tree(
 
     for index, item in enumerate(dirs):
         is_last_item = index == len(dirs) - 1
-        node_config = NodeConfig(show_size=show_size, show_date=show_date, use_color=use_color)
+        node_config = NodeConfig(
+            show_size=show_size,
+            show_date=show_date,
+            show_permissions=show_permissions,
+            use_color=use_color,
+            file_colors=file_colors,
+        )
         lines.append(
             process_tree_node(
-                item=item, prefix=prefix, config=node_config, is_last_item=is_last_item
+                item=item,
+                prefix=prefix,
+                config=node_config,
+                is_last_item=is_last_item,
+                git_status=git_statuses.get(item.resolve()) if git_statuses else None,
             )
         )
 
@@ -191,8 +254,95 @@ def generate_tree(
                 current_depth=current_depth + 1,
                 stats=stats,
                 exclude_pattern=exclude_pattern,
+                include_extensions=include_extensions,
+                include_globs=include_globs,
+                git_statuses=git_statuses,
+                file_colors=file_colors,
                 show_size=show_size,
                 show_date=show_date,
+                show_permissions=show_permissions,
+                use_color=use_color,
+            )
+        )
+
+    return lines
+
+
+def generate_horizontal_tree(
+    directory: Path,
+    *,
+    path_parts: Optional[List[str]] = None,
+    max_depth: Optional[int] = None,
+    current_depth: int = 0,
+    stats: Optional[TreeStats] = None,
+    exclude_pattern: Optional[Pattern] = None,
+    include_extensions: Optional[Set[str]] = None,
+    include_globs: Optional[Set[str]] = None,
+    git_statuses: Optional[Dict[Path, str]] = None,
+    file_colors: Optional[Dict[str, str]] = None,
+    show_size: bool = False,
+    show_date: bool = False,
+    show_permissions: bool = False,
+    use_color: bool = False,
+) -> List[str]:
+    """Generate a flattened horizontal tree with paths joined by arrows."""
+    if stats is None:
+        stats = TreeStats()
+    if path_parts is None:
+        path_parts = []
+
+    node_config = NodeConfig(
+        show_size=show_size,
+        show_date=show_date,
+        show_permissions=show_permissions,
+        use_color=use_color,
+        file_colors=file_colors,
+    )
+    lines = []
+    files, dirs = process_directory_path(
+        directory,
+        stats,
+        exclude_pattern,
+        include_extensions,
+        include_globs,
+    )
+
+    for item in files:
+        lines.append(
+            " > ".join(
+                path_parts
+                + [
+                    get_node_label(
+                        item,
+                        node_config,
+                        git_statuses.get(item.resolve()) if git_statuses else None,
+                    )
+                ]
+            )
+        )
+
+    if max_depth is not None and current_depth >= max_depth:
+        return lines
+
+    for item in dirs:
+        directory_status = git_statuses.get(item.resolve()) if git_statuses else None
+        directory_label = get_node_label(item, node_config, directory_status)
+        lines.append(" > ".join(path_parts + [directory_label]))
+        lines.extend(
+            generate_horizontal_tree(
+                item,
+                path_parts=path_parts + [get_node_display_name(item, node_config)],
+                max_depth=max_depth,
+                current_depth=current_depth + 1,
+                stats=stats,
+                exclude_pattern=exclude_pattern,
+                include_extensions=include_extensions,
+                include_globs=include_globs,
+                git_statuses=git_statuses,
+                file_colors=file_colors,
+                show_size=show_size,
+                show_date=show_date,
+                show_permissions=show_permissions,
                 use_color=use_color,
             )
         )

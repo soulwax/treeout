@@ -11,7 +11,7 @@ from .tree import (
 )
 from .types import NodeConfig, TreeStats
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 __all__ = [
     "TreeStats",

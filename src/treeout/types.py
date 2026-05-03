@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -26,4 +26,6 @@ class NodeConfig:
 
     show_size: bool = False
     show_date: bool = False
+    show_permissions: bool = False
     use_color: bool = False
+    file_colors: Optional[Dict[str, str]] = None

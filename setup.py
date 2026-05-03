@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as readme_file:
 
 setup(
     name="treeout",
-    version="0.9.0",
+    version="0.9.1",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=[],

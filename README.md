@@ -21,7 +21,7 @@ A Python-based enhanced tree command that displays directory structures with add
 - 📊 Summary statistics
 - 🌲 Depth control
 
-## Installation **(PENDING PUBLISHING)**
+## Installation
 
 Install directly from PyPI:
 
@@ -29,21 +29,19 @@ Install directly from PyPI:
 pip install treeout
 ```
 
-Until it is published, you can clone the repository and run the script directly:
+For local development, you can clone the repository:
 
 ```bash
 git clone https://github.com/soulwax/treeout.git
 ```
 
-Then run the script from the root directory:
+Then install it from the repository root:
 
 ```bash
 pip install -e . 
 ```
 
-This installs the package as editable, create a symlink to the script globally while changes are reflected immediately.
-
-Then:
+This installs the package as editable, creating a global `treeout` command while local changes are reflected immediately.
 
 ## Usage
 
@@ -150,7 +148,7 @@ The command generates a `tree.txt` file in the root directory containing the tre
 
 ## Requirements
 
-- Python 3.6 or higher
+- Python 3.8 or higher
 - No additional dependencies required
 
 ## TODOs
@@ -194,4 +192,5 @@ This project was inspired by the standard `tree` command and aims to provide a m
 
 ## Contact / Author
 
-**For issues, suggestions, or feedback, please contact the author at <https://github.com/soulwax>, or create a new issue on GitHub, or submit a pull request, any feedback is welcome.**
+**For issues, suggestions, or feedback, please contact the author soulwax: [mail me](mailto:soulwax@cock.li); github user: [URL TO](https://github.com/soulwax) or create a new issue o n GitHub, or submit a pull request, any feedback is welcome.**
+

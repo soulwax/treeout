@@ -1,6 +1,26 @@
 include LICENSE
 include README.md
 include pyproject.toml
-recursive-include tests *
+include setup.py
+
+prune .claude
+prune .github
+prune build
+prune dist
+prune tests
+
+exclude AGENT.md
+exclude AGENTS.md
+exclude CLAUDE.md
+exclude GEMINI.md
+exclude .gitignore
+exclude requirements-dev.txt
+exclude requirements.txt
+
 recursive-exclude * __pycache__
 recursive-exclude * *.py[cod]
+global-exclude .DS_Store
+global-exclude *.egg
+global-exclude *.egg-info
+global-exclude *.log
+global-exclude tree.txt

@@ -1,7 +1,7 @@
 """Utility functions for directory tree processing."""
 
 from pathlib import Path
-from typing import List, Tuple, Optional, Pattern
+from typing import List, Optional, Pattern, Tuple
 
 from .types import TreeStats
 

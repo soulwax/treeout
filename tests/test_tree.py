@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from treeout.types import TreeStats
 from treeout.tree import (
-    generate_tree,
-    compile_ignore_pattern,
     DEFAULT_IGNORE_PATTERNS,
+    compile_ignore_pattern,
+    generate_tree,
 )
+from treeout.types import TreeStats
 
 
 @pytest.fixture

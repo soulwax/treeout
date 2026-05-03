@@ -1,11 +1,11 @@
-"""Tests for the pytreeprint package."""
+"""Tests for the treeout package."""
 
 from pathlib import Path
 
 import pytest
 
-from pytreeprint.types import TreeStats
-from pytreeprint.tree import (
+from treeout.types import TreeStats
+from treeout.tree import (
     generate_tree,
     compile_ignore_pattern,
     DEFAULT_IGNORE_PATTERNS,

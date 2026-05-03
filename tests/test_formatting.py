@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from pytreeprint.cli import create_tree_config, generate_output
-from pytreeprint.tree import process_tree_node
-from pytreeprint.types import NodeConfig
+from treeout.cli import create_tree_config, generate_output
+from treeout.tree import process_tree_node
+from treeout.types import NodeConfig
 
 
 class MockArgs:

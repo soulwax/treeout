@@ -26,13 +26,13 @@ jobs:
           pip install -e .
       - name: Lint with pylint
         run: |
-          pylint src/pytreeprint tests
+          pylint src/treeout tests
       - name: Check formatting with black
         run: |
-          black --check src/pytreeprint tests
+          black --check src/treeout tests
       - name: Test with pytest
         run: |
-          pytest --cov=pytreeprint tests/
+          pytest --cov=treeout tests/
       - name: Build package
         run: |
           python -m build

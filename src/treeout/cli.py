@@ -1,4 +1,4 @@
-"""Command line interface for pytreeprint."""
+"""Command line interface for treeout."""
 
 import argparse
 import sys

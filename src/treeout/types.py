@@ -1,4 +1,4 @@
-"""Type definitions and shared classes for pytreeprint."""
+"""Type definitions and shared classes for treeout."""
 
 from dataclasses import dataclass
 from pathlib import Path

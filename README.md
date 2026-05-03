@@ -1,4 +1,4 @@
-# pytreeprint
+# treeout
 
 A Python-based enhanced tree command that displays directory structures with additional features and customization options.
 
@@ -9,7 +9,7 @@ A Python-based enhanced tree command that displays directory structures with add
 
 ## Overview
 
-`pytreeprint` is a versatile command-line tool for visualizing directory structures. It provides more features than the standard Windows `tree` command and offers rich customization for project analysis, documentation, and file management.
+`treeout` is a versatile command-line tool for visualizing directory structures. It provides more features than the standard Windows `tree` command and offers rich customization for project analysis, documentation, and file management.
 
 ## Features
 
@@ -26,13 +26,13 @@ A Python-based enhanced tree command that displays directory structures with add
 Install directly from PyPI:
 
 ```bash
-pip install pytreeprint
+pip install treeout
 ```
 
 Until it is published, you can clone the repository and run the script directly:
 
 ```bash
-git clone https://github.com/soulwax/pytreeprint.git
+git clone https://github.com/soulwax/treeout.git
 ```
 
 Then run the script from the root directory:
@@ -50,25 +50,25 @@ Then:
 ### Basic tree view
 
 ```shell
-pytreeprint
+treeout
 ```
 
 ### Show with colors and file sizes
 
 ```shell
-pytreeprint -c -s
+treeout -c -s
 ```
 
 ### Show everything (including normally ignored directories)
 
 ```shell
-pytreeprint --show-all
+treeout --show-all
 ```
 
 ### Show with file sizes, timestamps, and statistics
 
 ```shell
-pytreeprint -c -s -t --stats
+treeout -c -s -t --stats
 ```
 
 ### Command Line Options

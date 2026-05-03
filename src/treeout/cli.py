@@ -39,6 +39,9 @@ class TreeConfig:
     layout: str = "vertical"
     compare_snapshot: Optional[Path] = None
     save_snapshot: Optional[Path] = None
+    inspect_archives: bool = False
+    archive_max_entries: int = 50
+    show_progress: bool = False
     max_depth: Optional[int] = None
     show_stats: bool = False
 
@@ -81,6 +84,22 @@ def create_parser() -> argparse.ArgumentParser:
         "--save-snapshot",
         type=str,
         help="Write a file-size snapshot JSON file for a future comparison",
+    )
+    parser.add_argument(
+        "--inspect-archives",
+        action="store_true",
+        help="Show entries inside supported .zip, .tar, .tar.gz, and .tgz archives",
+    )
+    parser.add_argument(
+        "--archive-max-entries",
+        type=int,
+        default=50,
+        help="Maximum archive entries to show per archive (default: 50)",
+    )
+    parser.add_argument(
+        "--progress",
+        action="store_true",
+        help="Report visited directory count to stderr while generating output",
     )
     parser.add_argument(
         "-e",
@@ -335,6 +354,23 @@ def compare_size_snapshots(previous: Dict[str, int], current: Dict[str, int]) ->
     return lines
 
 
+class ProgressReporter:
+    """Simple stderr progress reporter for directory traversal."""
+
+    def __init__(self) -> None:
+        self.count = 0
+
+    def update(self, _directory: Path) -> None:
+        """Report one visited directory."""
+        self.count += 1
+        print(f"\rProcessed directories: {self.count}", end="", file=sys.stderr, flush=True)
+
+    def finish(self) -> None:
+        """Finish the progress line."""
+        if self.count:
+            print(file=sys.stderr)
+
+
 def get_default_output_file(target_dir: Path, output_format: str) -> Path:
     """Get the default output file for the selected format."""
     extensions = {
@@ -402,6 +438,9 @@ def create_tree_config(args: argparse.Namespace) -> TreeConfig:
         layout=args.layout,
         compare_snapshot=Path(args.compare_snapshot) if args.compare_snapshot else None,
         save_snapshot=Path(args.save_snapshot) if args.save_snapshot else None,
+        inspect_archives=args.inspect_archives,
+        archive_max_entries=max(args.archive_max_entries, 1),
+        show_progress=args.progress,
         max_depth=args.max_depth,
         show_stats=args.stats,
     )
@@ -410,12 +449,15 @@ def create_tree_config(args: argparse.Namespace) -> TreeConfig:
 def generate_output(config: TreeConfig) -> List[str]:
     """Generate tree output based on configuration."""
     stats = TreeStats()
+    progress = ProgressReporter() if config.show_progress else None
 
     # Start with the root directory name
     lines = [config.target_dir.name]
 
     # Process the root directory contents
-    tree_lines = process_root_directory(config, stats)
+    tree_lines = process_root_directory(config, stats, progress.update if progress else None)
+    if progress:
+        progress.finish()
     lines.extend(tree_lines)
 
     if config.show_stats:
@@ -437,7 +479,9 @@ def generate_output(config: TreeConfig) -> List[str]:
     return lines
 
 
-def process_root_directory(config: TreeConfig, stats: TreeStats) -> List[str]:
+def process_root_directory(
+    config: TreeConfig, stats: TreeStats, progress_callback=None
+) -> List[str]:
     """Process the root directory and generate initial output."""
     generator = generate_horizontal_tree if config.layout == "horizontal" else generate_tree
     return generator(
@@ -449,6 +493,9 @@ def process_root_directory(config: TreeConfig, stats: TreeStats) -> List[str]:
         include_globs=config.include_globs,
         git_statuses=config.git_statuses,
         file_colors=config.node_config.file_colors,
+        inspect_archives=config.inspect_archives,
+        archive_max_entries=config.archive_max_entries,
+        progress_callback=progress_callback,
         show_size=config.node_config.show_size,
         show_date=config.node_config.show_date,
         show_permissions=config.node_config.show_permissions,

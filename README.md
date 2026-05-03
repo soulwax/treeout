@@ -20,11 +20,13 @@ A Python-based enhanced tree command that displays directory structures with add
 - 🕒 Optional timestamp information
 - 🔐 Optional Unix-style permissions
 - 🧭 Optional Git status markers
+- 📦 Optional archive inspection for ZIP and TAR files
 - 🚫 Configurable ignore patterns
 - 🎯 File extension filtering
 - 🔎 Glob-based file matching
 - 📄 Text, JSON, XML, YAML, Markdown, and HTML output
 - 🧾 Size snapshots for comparing runs
+- ⏳ Lightweight traversal progress reporting
 - 📊 Summary statistics
 - 🌲 Depth control and vertical or horizontal layouts
 
@@ -139,6 +141,18 @@ treeout --save-snapshot before.json
 treeout --compare-snapshot before.json --save-snapshot after.json -s --stats
 ```
 
+### Peek inside archives
+
+```shell
+treeout --inspect-archives --archive-max-entries 20
+```
+
+### Show traversal progress
+
+```shell
+treeout --progress
+```
+
 ### Command Line Options
 
 | Option | Description |
@@ -156,6 +170,9 @@ treeout --compare-snapshot before.json --save-snapshot after.json -s --stats
 | `--layout` | Layout style: vertical or horizontal |
 | `--compare-snapshot` | Compare file sizes against a previous snapshot JSON file |
 | `--save-snapshot` | Write a file-size snapshot JSON file for future comparison |
+| `--inspect-archives` | Show entries inside supported .zip, .tar, .tar.gz, and .tgz archives |
+| `--archive-max-entries` | Maximum archive entries to show per archive |
+| `--progress` | Report visited directory count to stderr while generating output |
 | `--stats` | Show summary statistics |
 | `--no-color` | Disable color even if supported |
 
@@ -257,7 +274,7 @@ When using colors, color is only applied to text console output.
 - [x] Support for custom color schemes via config file
 - [x] Add search functionality with glob patterns
 - [x] Add size comparison between different runs
-- [ ] Add progress bar for large directories
+- [x] Add progress bar for large directories
 - [x] Add option for horizontal tree layout
 
 ### Future Considerations
@@ -265,7 +282,7 @@ When using colors, color is only applied to text console output.
 - [ ] Add network share/remote filesystem support
 - [ ] Create GUI interface with collapsible tree
 - [ ] Add plugin system for custom file type handlers
-- [ ] Support for archive inspection (peek into zip/tar files)
+- [x] Support for archive inspection (peek into zip/tar files)
 - [ ] Add multi-language support for output
 - [ ] Create system tray monitoring for directory changes
 

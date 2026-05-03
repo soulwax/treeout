@@ -39,6 +39,9 @@ class MockArgs:
         self.layout = "vertical"
         self.compare_snapshot = None
         self.save_snapshot = None
+        self.inspect_archives = False
+        self.archive_max_entries = 50
+        self.progress = False
         self.extensions = None
         self.glob_patterns = None
         self.output_format = "text"

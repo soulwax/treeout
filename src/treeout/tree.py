@@ -2,9 +2,11 @@
 
 import re
 import stat
+import tarfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Pattern, Set, Tuple
+from typing import Callable, Dict, List, Optional, Pattern, Set, Tuple
 
 from .types import NodeConfig, TreeStats
 from .utils import process_directory_path
@@ -67,6 +69,8 @@ FILE_COLORS = {
     **dict.fromkeys([".json", ".xml", ".yaml", ".yml", ".ini", ".conf"], "red"),
 }
 
+ARCHIVE_SUFFIXES = {".zip", ".tar", ".tgz", ".tar.gz"}
+
 
 def get_size_str(size: int) -> str:
     """Convert size in bytes to human readable format."""
@@ -99,6 +103,34 @@ def parse_pattern_file(file_path: str) -> Set[str]:
             "Warning: Could not read pattern file {}: {}".format(file_path, operating_system_error)
         )
     return patterns
+
+
+def is_archive_file(path: Path) -> bool:
+    """Return whether a path is a supported archive file."""
+    name = path.name.lower()
+    return any(name.endswith(suffix) for suffix in ARCHIVE_SUFFIXES)
+
+
+def get_archive_entries(path: Path, max_entries: int = 50) -> List[str]:
+    """Read a limited list of entries from a supported archive."""
+    try:
+        if path.suffix.lower() == ".zip":
+            with zipfile.ZipFile(path) as archive:
+                entries = sorted(archive.namelist())
+        elif is_archive_file(path):
+            with tarfile.open(path) as archive:
+                entries = sorted(archive.getnames())
+        else:
+            return []
+    except (OSError, tarfile.TarError, zipfile.BadZipFile):
+        return ["[archive unreadable]"]
+
+    limited_entries = entries[:max_entries]
+    remaining = len(entries) - len(limited_entries)
+    if remaining > 0:
+        limited_entries.append(f"... ({remaining} more)")
+
+    return limited_entries
 
 
 def get_color_for_file(
@@ -171,6 +203,21 @@ def process_tree_node(
     return f"{prefix}{connector}{get_node_label(item, config, git_status)}"
 
 
+def process_archive_entries(
+    item: Path,
+    prefix: str,
+    *,
+    max_entries: int,
+) -> List[str]:
+    """Render archive entries as nested pseudo-tree nodes."""
+    entries = get_archive_entries(item, max_entries)
+    lines = []
+    for index, entry in enumerate(entries):
+        connector = "└───" if index == len(entries) - 1 else "├───"
+        lines.append(f"{prefix}{connector}{entry}")
+    return lines
+
+
 def generate_tree(
     directory: Path,
     *,  # Ensure all additional params are keyword-only
@@ -183,6 +230,9 @@ def generate_tree(
     include_globs: Optional[Set[str]] = None,
     git_statuses: Optional[Dict[Path, str]] = None,
     file_colors: Optional[Dict[str, str]] = None,
+    inspect_archives: bool = False,
+    archive_max_entries: int = 50,
+    progress_callback: Optional[Callable[[Path], None]] = None,
     show_size: bool = False,
     show_date: bool = False,
     show_permissions: bool = False,
@@ -191,6 +241,8 @@ def generate_tree(
     """Generate a Windows-style ASCII tree structure for the given directory."""
     if stats is None:
         stats = TreeStats()
+    if progress_callback:
+        progress_callback(directory)
 
     lines = []
     files, dirs = process_directory_path(
@@ -220,6 +272,15 @@ def generate_tree(
                 git_status=git_statuses.get(item.resolve()) if git_statuses else None,
             )
         )
+        if inspect_archives and is_archive_file(item):
+            archive_prefix = prefix + ("    " if is_last_item else "│   ")
+            lines.extend(
+                process_archive_entries(
+                    item,
+                    archive_prefix,
+                    max_entries=archive_max_entries,
+                )
+            )
 
     # Process directories
     if max_depth is not None and current_depth >= max_depth:
@@ -258,6 +319,9 @@ def generate_tree(
                 include_globs=include_globs,
                 git_statuses=git_statuses,
                 file_colors=file_colors,
+                inspect_archives=inspect_archives,
+                archive_max_entries=archive_max_entries,
+                progress_callback=progress_callback,
                 show_size=show_size,
                 show_date=show_date,
                 show_permissions=show_permissions,
@@ -280,6 +344,9 @@ def generate_horizontal_tree(
     include_globs: Optional[Set[str]] = None,
     git_statuses: Optional[Dict[Path, str]] = None,
     file_colors: Optional[Dict[str, str]] = None,
+    inspect_archives: bool = False,
+    archive_max_entries: int = 50,
+    progress_callback: Optional[Callable[[Path], None]] = None,
     show_size: bool = False,
     show_date: bool = False,
     show_permissions: bool = False,
@@ -290,6 +357,8 @@ def generate_horizontal_tree(
         stats = TreeStats()
     if path_parts is None:
         path_parts = []
+    if progress_callback:
+        progress_callback(directory)
 
     node_config = NodeConfig(
         show_size=show_size,
@@ -308,18 +377,14 @@ def generate_horizontal_tree(
     )
 
     for item in files:
-        lines.append(
-            " > ".join(
-                path_parts
-                + [
-                    get_node_label(
-                        item,
-                        node_config,
-                        git_statuses.get(item.resolve()) if git_statuses else None,
-                    )
-                ]
-            )
-        )
+        item_status = git_statuses.get(item.resolve()) if git_statuses else None
+        item_label = get_node_label(item, node_config, item_status)
+        lines.append(" > ".join(path_parts + [item_label]))
+        if inspect_archives and is_archive_file(item):
+            for entry in get_archive_entries(item, archive_max_entries):
+                lines.append(
+                    " > ".join(path_parts + [get_node_display_name(item, node_config), entry])
+                )
 
     if max_depth is not None and current_depth >= max_depth:
         return lines
@@ -340,6 +405,9 @@ def generate_horizontal_tree(
                 include_globs=include_globs,
                 git_statuses=git_statuses,
                 file_colors=file_colors,
+                inspect_archives=inspect_archives,
+                archive_max_entries=archive_max_entries,
+                progress_callback=progress_callback,
                 show_size=show_size,
                 show_date=show_date,
                 show_permissions=show_permissions,

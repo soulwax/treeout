@@ -1,5 +1,6 @@
 """Tests for the treeout package."""
 
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,7 @@ from treeout.tree import (
     DEFAULT_IGNORE_PATTERNS,
     compile_ignore_pattern,
     generate_tree,
+    get_archive_entries,
     process_tree_node,
 )
 from treeout.types import NodeConfig, TreeStats
@@ -164,3 +166,45 @@ def test_custom_file_color_display(tmp_path: Path) -> None:
     )
 
     assert "\033[91mREADME.md\033[0m" in result
+
+
+def test_archive_inspection_zip(tmp_path: Path) -> None:
+    """Test rendering entries inside zip archives."""
+    archive_path = tmp_path / "bundle.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("alpha.txt", "alpha")
+        archive.writestr("nested/beta.py", "beta")
+
+    tree_output = generate_tree(
+        directory=tmp_path,
+        inspect_archives=True,
+        archive_max_entries=10,
+    )
+
+    assert any("bundle.zip" in line for line in tree_output)
+    assert any("alpha.txt" in line for line in tree_output)
+    assert any("nested/beta.py" in line for line in tree_output)
+
+
+def test_archive_entry_limit(tmp_path: Path) -> None:
+    """Test archive entry truncation."""
+    archive_path = tmp_path / "bundle.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("a.txt", "a")
+        archive.writestr("b.txt", "b")
+
+    assert get_archive_entries(archive_path, max_entries=1) == ["a.txt", "... (1 more)"]
+
+
+def test_progress_callback(test_directory: Path) -> None:
+    """Test traversal progress callback."""
+    visited = []
+
+    generate_tree(
+        directory=test_directory,
+        progress_callback=lambda directory: visited.append(directory.name),
+    )
+
+    assert test_directory.name in visited
+    assert "dir1" in visited
+    assert "dir2" in visited
